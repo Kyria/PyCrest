@@ -3,22 +3,19 @@ Created on Jun 27, 2016
 
 @author: henk
 '''
-import errno
 import httmock
 import mock
 import pycrest
-import sys
 import unittest
 
-from pycrest.cache import APICache
 from pycrest.cache import DictCache
 from pycrest.cache import DummyCache
 from pycrest.cache import FileCache
-from pycrest.cache import MemcachedCache
 from pycrest.errors import APIException
 from pycrest.errors import UnsupportedHTTPMethodException
 from pycrest.eve import APIObject
 from pycrest.eve import EVE
+from pycrest.events import after_token_refresh
 from requests.adapters import HTTPAdapter
 from requests.models import PreparedRequest
 
@@ -215,6 +212,13 @@ class TestAuthedConnection(unittest.TestCase):
             self.authed.whoami()
 
     def test_refresh(self):
+        def refresh_event_receiver(access_token, refresh_token, expires_in):
+            """ fake event receiver to test the signal trigger """
+            self.assertEqual(access_token, 'access_token')
+            self.assertEqual(refresh_token, 'refresh_token')
+            self.assertEqual(expires_in, 300)
+        after_token_refresh.add_receiver(refresh_event_receiver)
+
         with httmock.HTTMock(*all_httmocks):
             self.authed.refresh()
 
@@ -225,6 +229,7 @@ class TestAuthedConnection(unittest.TestCase):
 
 
 class TestAPIConnection(unittest.TestCase):
+    TEST_DIR = '/tmp/TestFileCache'
 
     def setUp(self):
         self.api = EVE()
@@ -337,9 +342,9 @@ class TestAPIConnection(unittest.TestCase):
     @mock.patch('os.path.isdir', return_value=False)
     @mock.patch('os.mkdir')
     def test_file_cache(self, mkdir_function, isdir_function):
-        file_cache = FileCache(path=TestFileCache.DIR)
+        file_cache = FileCache(path=TestAPIConnection.TEST_DIR)
         eve = EVE(cache=file_cache)
-        self.assertEqual(file_cache.path, TestFileCache.DIR)
+        self.assertEqual(file_cache.path, TestAPIConnection.TEST_DIR)
         self.assertTrue(isinstance(eve.cache, FileCache))
 
     def test_default_url(self):
