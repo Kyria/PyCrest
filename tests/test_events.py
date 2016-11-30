@@ -43,3 +43,7 @@ class TestSignal(unittest.TestCase):
             self.event_receiver_exception,
             self.signal.event_receivers
         )
+
+    def test_signal_add_not_callable_receiver(self):
+        with self.assertRaises(TypeError):
+            self.signal.add_receiver("No callable receiver")
